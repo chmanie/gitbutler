@@ -35,7 +35,7 @@ bot.on('message', function (data) {
         json: true
       }, function (err, resp, body) {
         if (err || !body.title) return;
-        var msg = body.title + ' - ' + 'https://github.com/%%%/' + repo + '/issues/' + no;
+        var msg = '*#' + no + ':* ' + body.title + ' - ' + 'https://github.com/%%%/' + repo + '/issues/' + no;
         bot.postMessageToChannel(channels[data.channel], msg);
       });
     }
