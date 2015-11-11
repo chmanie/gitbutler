@@ -3,8 +3,8 @@ var request = require('request');
 
 // create a bot
 var settings = {
-    token: '%%%',
-    name: '%%%'
+    token: process.env.SLACK_TOKEN,
+    name: process.env.SLACK_BOT_NAME
 };
 
 var DEFAULT_REPO = '%%%';
@@ -26,8 +26,8 @@ bot.on('message', function (data) {
       return request.get({
         url: 'https://api.github.com/repos/%%%/' + repo + '/issues/' + no,
         auth: {
-          user: '%%%',
-          pass: '%%%'
+          user: process.env.GITHUB_USERNAME,
+          pass: process.env.GITHUB_TOKEN
         },
         headers: {
           'user-agent': 'request'
