@@ -1,21 +1,24 @@
 var Bot = require('slackbots');
 var request = require('request');
 
+var config = require('./slackbotrc.json');
+
 // create a bot
 var settings = {
-    token: process.env.SLACK_TOKEN,
-    name: process.env.SLACK_BOT_NAME
+    token: config.credentials.SLACK_TOKEN,
+    name: config.credentials.SLACK_BOT_NAME
 };
 
-var DEFAULT_REPO = '%%%';
+var DEFAULT_REPO = config.settings.DEFAULT_REPO;
+var DEFAULT_ACCOUNT = config.settings.DEFAULT_ACCOUNT;
 
-var channels = {};
+var channels = config.channels;
 
 var bot = new Bot(settings);
 
 bot.on('message', function (data) {
   if (data.type === 'message') {
-    if (data.username === '%%%') return;
+    if (data.username === config.credentials.SLACK_BOT_NAME) return;
     if (Object.keys(channels).indexOf(data.channel) === -1) return;
     var match = data.text.match(/([^#\s]+?)?#([0-9])+/g);
     if (!match) return;
@@ -24,10 +27,10 @@ bot.on('message', function (data) {
       var repo = str[0] || DEFAULT_REPO;
       var no = str[1];
       return request.get({
-        url: 'https://api.github.com/repos/%%%/' + repo + '/issues/' + no,
+        url: 'https://api.github.com/repos/' + DEFAULT_ACCOUNT + '/' + repo + '/issues/' + no,
         auth: {
-          user: process.env.GITHUB_USERNAME,
-          pass: process.env.GITHUB_TOKEN
+          user: config.credentials.GITHUB_USERNAME,
+          pass: config.credentials.GITHUB_TOKEN
         },
         headers: {
           'user-agent': 'request'
@@ -35,7 +38,7 @@ bot.on('message', function (data) {
         json: true
       }, function (err, resp, body) {
         if (err || !body.title) return;
-        var msg = '*#' + no + ':* ' + body.title + ' - ' + 'https://github.com/%%%/' + repo + '/issues/' + no;
+        var msg = '*#' + no + ':* ' + body.title + ' - ' + 'https://github.com/' + DEFAULT_ACCOUNT + '/' + repo + '/issues/' + no;
         bot.postMessageToChannel(channels[data.channel], msg);
       });
     }
@@ -43,7 +46,7 @@ bot.on('message', function (data) {
       str = str.split('#');
       var repo = str[0] || DEFAULT_REPO;
       var no = str[1];
-      return 'https://github.com/%%%/' + repo + '/issues/' + no;
+      return 'https://github.com/' + DEFAULT_ACCOUNT + '/' + repo + '/issues/' + no;
     }).join(' - ');
     bot.postMessageToChannel(channels[data.channel], msg);
   }
