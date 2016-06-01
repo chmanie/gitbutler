@@ -8,7 +8,7 @@
     "start": "node_modules/.bin/forever start index.js"
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "forever": "^0.15.1",
     "request": "^2.65.0",
