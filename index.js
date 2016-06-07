@@ -11,6 +11,7 @@ var settings = {
 
 var DEFAULT_REPO = config.settings.DEFAULT_REPO;
 var DEFAULT_ACCOUNT = config.settings.DEFAULT_ACCOUNT;
+var BOT_AVATAR = config.settings.BOT_AVATAR;
 
 var channels = config.channels;
 
@@ -20,7 +21,7 @@ bot.on('message', function (data) {
   if (data.type === 'message') {
     if (data.username === config.credentials.SLACK_BOT_NAME) return;
     if (Object.keys(channels).indexOf(data.channel) === -1) return;
-    var match = data.text.match(/([^#\s]+?)?#([0-9])+/g);
+    var match = data.text && data.text.match(/([^#\s]+?)?#([0-9])+/g);
     if (!match) return;
     if (match.length === 1) {
       var str = match[0].split('#');
@@ -39,7 +40,9 @@ bot.on('message', function (data) {
       }, function (err, resp, body) {
         if (err || !body.title) return;
         var msg = '#' + no + ': *' + body.title + '* - ' + 'https://github.com/' + DEFAULT_ACCOUNT + '/' + repo + '/issues/' + no;
-        bot.postMessageToChannel(channels[data.channel], msg);
+        bot.postMessageToChannel(channels[data.channel], msg, {
+          icon_emoji: BOT_AVATAR
+        });
       });
     }
     var msg = match.map(function (str) {
