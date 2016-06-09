@@ -1,4 +1,5 @@
 var Bot = require('slackbots');
+var runAsync = require('async');
 var request = require('request');
 
 var config = require('./slackbotrc.json');
@@ -27,30 +28,64 @@ bot.on('message', function (data) {
       var str = match[0].split('#');
       var repo = str[0] || DEFAULT_REPO;
       var no = str[1];
-      return request.get({
-        url: 'https://api.github.com/repos/' + DEFAULT_ACCOUNT + '/' + repo + '/issues/' + no,
-        auth: {
-          user: config.credentials.GITHUB_USERNAME,
-          pass: config.credentials.GITHUB_TOKEN
-        },
-        headers: {
-          'user-agent': 'request'
-        },
-        json: true
-      }, function (err, resp, body) {
-        if (err || !body.title) return;
-        var msg = '#' + no + ': *' + body.title + '* - ' + 'https://github.com/' + DEFAULT_ACCOUNT + '/' + repo + '/issues/' + no;
+      return getGithubData(repo, no, function (err, res) {
+        if (err) {
+          return console.log(err);
+        }
+        if (!res || !res.title) {
+          return;
+        }
+        var msg = '#' + no + ': *' + res.title + '* - ' + 'https://github.com/' + DEFAULT_ACCOUNT + '/' + repo + '/issues/' + no;
         bot.postMessageToChannel(channels[data.channel], msg, {
           icon_emoji: BOT_AVATAR
         });
       });
     }
-    var msg = match.map(function (str) {
+
+    var args = match.map(function (str) {
       str = str.split('#');
-      var repo = str[0] || DEFAULT_REPO;
-      var no = str[1];
-      return 'https://github.com/' + DEFAULT_ACCOUNT + '/' + repo + '/issues/' + no;
-    }).join(' - ');
-    bot.postMessageToChannel(channels[data.channel], msg);
+      return {
+        repo: str[0] || DEFAULT_REPO,
+        no: str[1]
+      }
+    });
+
+    runAsync.map(args, function (ghArgs, callback) {
+      getGithubData(ghArgs.repo, ghArgs.no, function (err, res) {
+        callback(err, {
+          title: res.title,
+          repo: ghArgs.repo,
+          no: ghArgs.no
+        });
+      });
+    }, function (err, resArray) {
+      if (err) {
+        return console.log(err);
+      }
+      var msg = resArray.map(function(res) {
+        return '#' + res.no + ': *' + res.title + '* - ' + 'https://github.com/' + DEFAULT_ACCOUNT + '/' + res.repo + '/issues/' + res.no;
+      }).join('\n');
+      bot.postMessageToChannel(channels[data.channel], msg, {
+        icon_emoji: BOT_AVATAR
+      });
+    });
   }
 });
+
+function getGithubData(repo, no, callback) {
+  return request.get({
+    url: 'https://api.github.com/repos/' + DEFAULT_ACCOUNT + '/' + repo + '/issues/' + no,
+    auth: {
+      user: config.credentials.GITHUB_USERNAME,
+      pass: config.credentials.GITHUB_TOKEN
+    },
+    headers: {
+      'user-agent': 'request'
+    },
+    json: true
+  }, function (err, resp, body) {
+    callback(null, {
+      title: body.title
+    });
+  });
+}
