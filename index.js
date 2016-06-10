@@ -62,9 +62,13 @@ bot.on('message', function (data) {
       if (err) {
         return console.log(err);
       }
-      var msg = resArray.map(function(res) {
-        return '#' + res.no + ': *' + res.title + '* - ' + 'https://github.com/' + DEFAULT_ACCOUNT + '/' + res.repo + '/issues/' + res.no;
-      }).join('\n');
+      var msg = resArray
+        .filter(function (res, idx, self) {
+          return self.findIndex(oneRes => oneRes.no === res.no) === idx;
+        })
+        .map(function(res) {
+          return '#' + res.no + ': *' + res.title + '* - ' + 'https://github.com/' + DEFAULT_ACCOUNT + '/' + res.repo + '/issues/' + res.no;
+        }).join('\n');
       bot.postMessageToChannel(channels[data.channel], msg, {
         icon_emoji: BOT_AVATAR
       });
