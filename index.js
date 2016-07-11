@@ -22,7 +22,7 @@ bot.on('message', function (data) {
   if (data.type === 'message') {
     if (data.username === config.credentials.SLACK_BOT_NAME) return;
     if (Object.keys(channels).indexOf(data.channel) === -1) return;
-    var match = data.text && data.text.match(/([^#\s]+?)?#([0-9])+/g);
+    var match = data.text && data.text.match(/([^#\s\(,]+?)?#([0-9])+/g);
     if (!match) return;
     if (match.length === 1) {
       var str = match[0].split('#');
