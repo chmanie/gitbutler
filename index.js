@@ -13,17 +13,52 @@ var settings = {
 var DEFAULT_REPO = config.settings.DEFAULT_REPO;
 var DEFAULT_ACCOUNT = config.settings.DEFAULT_ACCOUNT;
 var BOT_AVATAR = config.settings.BOT_AVATAR;
+var GITHUB_STATUS_CHANNEL = config.settings.GITHUB_STATUS_CHANNEL;
 
 var channels = config.channels;
 
 var bot = new Bot(settings);
+var parrots = 0;
+var lastparrot = new Date();
 
 bot.on('message', function (data) {
+  if (data.type === 'reaction_added' && data.reaction === 'partyparrot') {
+    parrots++;
+    var now = new Date();
+    var difference = now.valueOf() - lastparrot.valueOf();
+    if (difference > (12 * 60 * 60 * 1000)) {
+      var parrotMsg = 'It was about time! Last :partyparrot: was ' + Math.ceil(difference / (60 * 60 * 1000)) + ' hour(s) ago!';
+      bot.postMessageToChannel(channels[data.channel], parrotMsg, {
+        icon_emoji: BOT_AVATAR
+      });
+    }
+    lastparrot = new Date();
+  }
   if (data.type === 'message') {
+    if (data.text && data.text.match(/(chewie|Chewie)/)) {
+      bot.postMessageToChannel(channels[data.channel], 'Gnaaaaarrrrl!', {
+        icon_emoji: BOT_AVATAR
+      });
+    }
+    if (data.text && data.text.match(/whenparrot/)) {
+      var now = new Date();
+      var difference = now.valueOf() - lastparrot.valueOf();
+      var parrotMsg = 'Last :partyparrot: was ' + Math.ceil(difference / (60 * 60 * 1000)) + ' hour(s) ago! I am glad you asked';
+      bot.postMessageToChannel(channels[data.channel], parrotMsg, {
+        icon_emoji: BOT_AVATAR
+      });
+    }
     if (data.username === config.credentials.SLACK_BOT_NAME) return;
     if (Object.keys(channels).indexOf(data.channel) === -1) return;
-    var match = data.text && data.text.match(/([^#\s\(,]+?)?#([0-9])+/g);
-    if (!match) return;
+    var regex = /([^#\s\(,]+?)?#([0-9])+/g;
+    var match = data.text && data.text.match(regex);
+    var edited = false;
+    var editedMatch = data.message && data.message.text.match(regex);
+    if (!match && !editedMatch) return;
+    if (editedMatch) {
+      edited = true;
+      match = editedMatch;
+    }
     if (match.length === 1) {
       var str = match[0].split('#');
       var repo = str[0] || DEFAULT_REPO;
@@ -35,7 +70,7 @@ bot.on('message', function (data) {
         if (!res || !res.title) {
           return;
         }
-        var msg = '#' + no + ': *' + res.title + '* - ' + 'https://github.com/' + DEFAULT_ACCOUNT + '/' + repo + '/issues/' + no;
+        var msg = (edited ? 'Edited: ' : '') + '#' + no + ': *' + res.title + '* - ' + 'https://github.com/' + DEFAULT_ACCOUNT + '/' + repo + '/issues/' + no;
         bot.postMessageToChannel(channels[data.channel], msg, {
           icon_emoji: BOT_AVATAR
         });
@@ -75,6 +110,18 @@ bot.on('message', function (data) {
     });
   }
 });
+
+setInterval(function getGithubStatus () {
+  request.get({
+    url: 'https://status.github.com/api/status.json',
+    json: true,
+  }, function (err, resp, body) {
+    if (body.status === 'good') return;
+    bot.postMessageToChannel(GITHUB_STATUS_CHANNEL, ':scream: Oi! github seems to be not working properly! More info here: https://status.github.com :scream:', {
+      icon_emoji: BOT_AVATAR
+    });
+  });
+}, 5 * 60 * 1000);
 
 function getGithubData(repo, no, callback) {
   return request.get({
