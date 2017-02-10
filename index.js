@@ -6,8 +6,8 @@ var config = require('./slackbotrc.json');
 
 // create a bot
 var settings = {
-    token: config.credentials.SLACK_TOKEN,
-    name: config.credentials.SLACK_BOT_NAME
+  token: config.credentials.SLACK_TOKEN,
+  name: config.credentials.SLACK_BOT_NAME
 };
 
 var DEFAULT_REPO = config.settings.DEFAULT_REPO;
@@ -20,6 +20,7 @@ var channels = config.channels;
 var bot = new Bot(settings);
 var parrots = 0;
 var lastparrot = new Date();
+var githubDown = false;
 
 bot.on('message', function (data) {
   if (data.type === 'reaction_added' && data.reaction === 'partyparrot') {
@@ -77,6 +78,10 @@ bot.on('message', function (data) {
       });
     }
 
+    if (edited) {
+      return;
+    }
+
     var args = match.map(function (str) {
       str = str.split('#');
       return {
@@ -116,10 +121,20 @@ setInterval(function getGithubStatus () {
     url: 'https://status.github.com/api/status.json',
     json: true,
   }, function (err, resp, body) {
-    if (body.status === 'good') return;
-    bot.postMessageToChannel(GITHUB_STATUS_CHANNEL, ':scream: Oi! github seems to be not working properly! More info here: https://status.github.com :scream:', {
+    if (body.status === 'good') {
+      if (githubDown) {
+        bot.postMessageToChannel(GITHUB_STATUS_CHANNEL, ':rocket: GitHub is back to normal! :heart:', {
+          icon_emoji: BOT_AVATAR
+        });
+        githubDown = false;
+      }
+      return;
+    }
+    if (githubDown) return;
+    bot.postMessageToChannel(GITHUB_STATUS_CHANNEL, ':scream: Oi! GitHub doesn\'t seem to be working properly. More info here: https://status.github.com :scream:', {
       icon_emoji: BOT_AVATAR
     });
+    githubDown = true;
   });
 }, 5 * 60 * 1000);
 
