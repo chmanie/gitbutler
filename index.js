@@ -36,8 +36,16 @@ bot.on('message', function (data) {
     lastparrot = new Date();
   }
   if (data.type === 'message') {
+    var say = data.text && data.text.match(/^chewie\ssay\s(.+?)\s(.+)$/);
+    if (say) {
+      var channel = say[1];
+      var words = say[2];
+      return bot.postMessageToChannel(channel, words, {
+        icon_emoji: BOT_AVATAR
+      });
+    }
     if (data.text && data.text.match(/(chewie|Chewie)/)) {
-      bot.postMessageToChannel(channels[data.channel], 'Gnaaaaarrrrl!', {
+      return bot.postMessageToChannel(channels[data.channel], 'Gnaaaaarrrrl!', {
         icon_emoji: BOT_AVATAR
       });
     }
@@ -45,7 +53,7 @@ bot.on('message', function (data) {
       var now = new Date();
       var difference = now.valueOf() - lastparrot.valueOf();
       var parrotMsg = 'Last :partyparrot: was ' + Math.ceil(difference / (60 * 60 * 1000)) + ' hour(s) ago! I am glad you asked';
-      bot.postMessageToChannel(channels[data.channel], parrotMsg, {
+      return bot.postMessageToChannel(channels[data.channel], parrotMsg, {
         icon_emoji: BOT_AVATAR
       });
     }
