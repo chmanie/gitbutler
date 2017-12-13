@@ -14,6 +14,7 @@ var DEFAULT_REPO = config.settings.DEFAULT_REPO;
 var DEFAULT_ACCOUNT = config.settings.DEFAULT_ACCOUNT;
 var BOT_AVATAR = config.settings.BOT_AVATAR;
 var GITHUB_STATUS_CHANNEL = config.settings.GITHUB_STATUS_CHANNEL;
+var GITHUB_PARSE_REGEX = '(([^#\\s\\(,]+)\/)?([^#\\s\\(,]+?)?#([0-9]+)';
 
 var channels = config.channels;
 
@@ -59,49 +60,31 @@ bot.on('message', function (data) {
     }
     if (data.username === config.credentials.SLACK_BOT_NAME) return;
     if (Object.keys(channels).indexOf(data.channel) === -1) return;
-    var regex = /([^#\s\(,]+?)?#([0-9])+/g;
-    var match = data.text && data.text.match(regex);
-    var edited = false;
-    var editedMatch = data.message && data.message.text.match(regex);
-    if (!match && !editedMatch) return;
-    if (editedMatch) {
-      edited = true;
-      match = editedMatch;
-    }
+    var match = data.text && data.text.match(new RegExp(GITHUB_PARSE_REGEX, 'g'));
+    if (!match) return;
     if (match.length === 1) {
-      var str = match[0].split('#');
-      var repo = str[0] || DEFAULT_REPO;
-      var no = str[1];
-      return getGithubData(repo, no, function (err, res) {
+      var parsed = parseMatch(match[0]);
+      return getGithubData(parsed.user, parsed.repo, parsed.no, function (err, res) {
         if (err) {
           return console.log(err);
         }
         if (!res || !res.title) {
           return;
         }
-        var msg = (edited ? 'Edited: ' : '') + '#' + no + ': *' + res.title + '* - ' + 'https://github.com/' + DEFAULT_ACCOUNT + '/' + repo + '/issues/' + no;
+        var msg = '#' + parsed.no + ': *' + res.title + '* - ' + 'https://github.com/' + (parsed.user || DEFAULT_ACCOUNT) + '/' + (parsed.repo || DEFAULT_REPO)  + '/issues/' + parsed.no;
         bot.postMessageToChannel(channels[data.channel], msg, {
           icon_emoji: BOT_AVATAR
         });
       });
     }
 
-    if (edited) {
-      return;
-    }
-
-    var args = match.map(function (str) {
-      str = str.split('#');
-      return {
-        repo: str[0] || DEFAULT_REPO,
-        no: str[1]
-      }
-    });
+    var args = match.map(parseMatch);
 
     runAsync.map(args, function (ghArgs, callback) {
-      getGithubData(ghArgs.repo, ghArgs.no, function (err, res) {
+      getGithubData(ghArgs.user, ghArgs.repo, ghArgs.no, function (err, res) {
         callback(err, {
           title: res.title,
+          user: ghArgs.user,
           repo: ghArgs.repo,
           no: ghArgs.no
         });
@@ -115,7 +98,7 @@ bot.on('message', function (data) {
           return self.findIndex(oneRes => oneRes.no === res.no) === idx;
         })
         .map(function(res) {
-          return '#' + res.no + ': *' + res.title + '* - ' + 'https://github.com/' + DEFAULT_ACCOUNT + '/' + res.repo + '/issues/' + res.no;
+          return '#' + res.no + ': *' + res.title + '* - ' + 'https://github.com/' + (res.user || DEFAULT_ACCOUNT) + '/' + (res.repo || DEFAULT_REPO)  + '/issues/' + res.no;
         }).join('\n');
       bot.postMessageToChannel(channels[data.channel], msg, {
         icon_emoji: BOT_AVATAR
@@ -146,9 +129,21 @@ setInterval(function getGithubStatus () {
   });
 }, 5 * 60 * 1000);
 
-function getGithubData(repo, no, callback) {
+function parseMatch(str) {
+  var regex = new RegExp(GITHUB_PARSE_REGEX);
+  var match = str.match(regex);
+  if (match) {
+    return {
+      user: match[2],
+      repo: match[3],
+      no: match[4]
+    }
+  }
+}
+
+function getGithubData(user, repo, no, callback) {
   return request.get({
-    url: 'https://api.github.com/repos/' + DEFAULT_ACCOUNT + '/' + repo + '/issues/' + no,
+    url: 'https://api.github.com/repos/' + (user || DEFAULT_ACCOUNT) + '/' + (repo || DEFAULT_REPO) + '/issues/' + no,
     auth: {
       user: config.credentials.GITHUB_USERNAME,
       pass: config.credentials.GITHUB_TOKEN
